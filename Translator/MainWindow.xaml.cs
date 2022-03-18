@@ -28,7 +28,6 @@ namespace Translator
         public MainWindow()
         {
             InitializeComponent();
-            OpenFile();
             // SetTransDictAndRefer(new DictObject());
 
         }
@@ -155,7 +154,7 @@ namespace Translator
             RemoveAllTransRecommend();
             TransProgress.Content = "翻译进度：" + transLists.Count(word => word.ZhText != "") + "/" + transLists.Count;
             KeyName.Content = "当前键名：" + transLists[TransWordList.SelectedIndex].TranslationKey;
-            SetTransDictAndRefer(new DictObject());
+            // SetTransDictAndRefer(new DictObject());
         }
 
         private void GetTransDict1()
@@ -258,6 +257,39 @@ namespace Translator
         {
             if (SaveFile())
                 SaveFloatWindow();
+        }
+
+        private void Grid_Loaded(object sender, RoutedEventArgs e)
+        {
+            OpenFile();
+        }
+
+        private void TransText_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+            var TextCount = TransText.Text.Split('\n').Length;
+            var OriginCount = OriginText.Text.Split('\n').Length;
+            if (TextCount >= OriginCount)
+            {
+                if (TransText.Text.EndsWith("\n"))
+                    TransText.Text = TransText.Text.Substring(0, TransText.Text.Length - 2);
+                transLists[transWordIndex].ZhText = TransText.Text;
+                SaveFile();
+                NextTransList();
+                return;
+            }
+            if (TransText.SelectionLength != 0)
+                TransText.SelectedText = "\n";
+            else
+            {
+                var selectIndex = TransText.SelectionStart;
+                if (TransText.Text.Length == selectIndex)
+                    TransText.Text += "\n";
+                else
+                    TransText.SelectedText = "\n";
+                TransText.SelectionLength = 0;
+                TransText.SelectionStart = selectIndex + 1;
+            }
         }
     }
 
