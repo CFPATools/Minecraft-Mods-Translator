@@ -1,0 +1,230 @@
+﻿<Window Title="Minecraft Mods Translator"
+        Height="600"
+        MinHeight="600"
+        MinWidth="960"
+        Width="960"
+        x:Class="Translator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:pu="clr-namespace:Panuon.UI.Silver;assembly=Panuon.UI.Silver"
+        mc:Ignorable="d">
+    <Window.Resources>
+        <RoutedUICommand x:Key="onCtrlSPress"/>
+        <Style TargetType="{x:Type Button}" x:Key="LeftButtonStyle">
+            <Setter Property="Height" Value="60" />
+            <Setter Property="Background" Value="#BDBDBD" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="White"></Setter>
+            <Setter Property="FontFamily" Value="misans"></Setter>
+        </Style>
+        <Style TargetType="{x:Type Button}" x:Key="TransSelectStyle">
+            <Style.Setters>
+                <Setter Property="Height" Value="30" />
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="Background" Value="White" />
+                <Setter Property="Foreground" Value="Black" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="FontFamily" Value="misans"></Setter>
+            </Style.Setters>
+        </Style>
+        <Style TargetType="{x:Type Button}" x:Key="RightButtonStyle">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Background" Value="#8FBC8F" />
+            <Setter Property="FontSize" Value="15" />
+            <!-- <Setter Property="BorderThickness" Value="0" /> -->
+            <Setter Property="Foreground" Value="White"></Setter>
+            <Setter Property="FontFamily" Value="misans"></Setter>
+        </Style>
+        
+    </Window.Resources>
+    <Window.InputBindings>
+        <KeyBinding
+            Gesture="Ctrl+S"
+            Command="{StaticResource onCtrlSPress}"/>
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding 
+            Command="{StaticResource onCtrlSPress}"
+            Executed="CtrlSOnExecuted"/>
+    </Window.CommandBindings>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        
+        <StackPanel
+            VerticalAlignment="Top"
+            Margin="10,10"
+            Background="#BDBDBD"
+            Grid.Column="2">
+            <Button Content="打开" Style="{StaticResource LeftButtonStyle}" Click="OpenFileOnClick"/>
+            <Button Content="保存" Style="{StaticResource LeftButtonStyle}" Click="SaveFileOnClick"/>
+        </StackPanel>
+        <Border
+            x:Name="FloatWindow"
+            VerticalAlignment="Bottom"
+            Height="50"
+            Background="#FFCDD2"
+            BorderBrush="#EF5350"
+            BorderThickness="1"
+            Margin="10"
+            Opacity="0"
+            CornerRadius="10">
+            <TextBlock
+                Text="保存成功"
+                FontSize="20"
+                FontFamily="misans"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"/>
+        </Border>
+
+
+
+        <Grid Grid.Column="1" Margin="0,10">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="2*" />
+                <RowDefinition Height="2*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="2*" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"></RowDefinition>
+                    <RowDefinition Height="*"></RowDefinition>
+                </Grid.RowDefinitions>
+                <Label Grid.Row="0" Content="翻译小工具" Background="White" FontSize="20"></Label>
+                <Label Grid.Row="1" Content="当前键名：" Background="White" FontSize="15" x:Name="KeyName"></Label>
+                <Label Grid.Row="1" Content="翻译进度：" Background="White" FontSize="15" HorizontalAlignment="Right" x:Name="TransProgress"></Label>
+            </Grid>
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"></RowDefinition>
+                    <RowDefinition Height="4*"></RowDefinition>
+                </Grid.RowDefinitions>
+                <Label Grid.Row="0" Content="原文" Background="White"></Label>
+                <TextBox Grid.Row="1" x:Name="OriginText" Text="" IsReadOnly="True" VerticalAlignment="Stretch" VerticalContentAlignment="Center"></TextBox>
+            </Grid>
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"></RowDefinition>
+                    <RowDefinition Height="4*"></RowDefinition>
+                </Grid.RowDefinitions>
+                <Label Grid.Row="0" Content="翻译" Background="White"></Label>
+                <TextBox Grid.Row="1" x:Name="TransText" Text="" VerticalAlignment="Stretch" VerticalContentAlignment="Center"></TextBox>
+            </Grid>
+            <Grid Grid.Row="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"></RowDefinition>
+                    <RowDefinition Height="2*"></RowDefinition>
+                </Grid.RowDefinitions>
+                <Label Grid.Row="0" Content="系统推荐翻译（点击选择）" Background="White" FontSize="11"></Label>
+                <ItemsControl x:Name="TranslateSelector" Grid.Row="1">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button 
+                                Margin="0,0"
+                                Content="{Binding Trans}"
+                                Width="{Binding Width}"
+                                Height="30"
+                                FontSize="15"
+                                Background="White"
+                                Foreground="Black"
+                                BorderThickness="0"
+                                FontFamily="misans"
+                                pu:ButtonHelper.HoverBackground="#6CBCEA"
+                                pu:ButtonHelper.HoverForeground="White"
+                                Click="TransSelectClick"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="7*"></ColumnDefinition>
+                    <ColumnDefinition Width="*"></ColumnDefinition>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <Label Content="词典参考：" Background="White" FontSize="11"></Label>
+                    <ItemsControl x:Name="TransDict">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Label
+                                        Content="{Binding Refer}"
+                                        Background="White"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"></RowDefinition>
+                        <RowDefinition Height="*"></RowDefinition>
+                        <RowDefinition Height="*"></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Button Grid.Row="0" BorderThickness="1" Content="提交" Click="SubmitOnClick" Margin="0,5"
+                            Background="#6CBCEA"
+                            Foreground="White"
+                            pu:ButtonHelper.CornerRadius="3"
+                            pu:ShadowHelper.Direction="240"/>
+                    <Button Grid.Row="1" BorderThickness="1" Content="跳过" Click="SkipOnClick" Margin="0,5"
+                            Background="#6CBCEA"
+                            Foreground="White"
+                            pu:ButtonHelper.CornerRadius="3"
+                            pu:ShadowHelper.Direction="240"/>
+                    <Button Grid.Row="2" BorderThickness="1" Content="上一个" Click="LastOnClick" Margin="0,5"
+                            Background="#5CACDA"
+                            Foreground="White"
+                            pu:ButtonHelper.CornerRadius="3"
+                            pu:ShadowHelper.Direction="240"/>
+                </Grid>
+            </Grid>
+
+        </Grid>
+
+
+
+
+        <Grid Grid.Row="0" Grid.Column="0" Background="#8FBC8F" x:Name="WordListLayout" Margin="10,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="2*"></RowDefinition>
+                <RowDefinition Height="11*"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Label Grid.Row="0" Background="#8FBC8F" Content="模组词库列表" FontFamily="misans" FontSize="20" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="White" x:Name="ViewCount"/>
+            <ListBox Grid.Row="1" Background="#AFDCAF" x:Name="TransWordList" SelectionChanged="TransWordList_OnSelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                            <TextBlock 
+                                VerticalAlignment="Center"
+                                Foreground="{Binding Color}"
+                                Text="{Binding Judge}"/>
+                            <StackPanel>
+                                <TextBlock
+                                    Text="{Binding EnText}"
+                                    Margin="5,0"
+                                    Height="20"/>
+                                <TextBlock
+                                    Text="{Binding ZhText}"
+                                    Margin="5,0"
+                                    Height="20"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Grid>
+</Window>
