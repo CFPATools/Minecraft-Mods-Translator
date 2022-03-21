@@ -120,7 +120,7 @@
                 <Label Grid.Row="0" Content="翻译" Background="White"></Label>
                 <TextBox Grid.Row="1" x:Name="TransText" Text="" VerticalAlignment="Stretch" KeyDown="TransText_KeyDown" />
             </Grid>
-            <Grid Grid.Row="3" Visibility="Hidden">
+            <Grid Grid.Row="3" Visibility="Hidden" x:Name="TransHidden1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"></RowDefinition>
                     <RowDefinition Height="2*"></RowDefinition>
@@ -172,21 +172,23 @@
             </Grid>
             <Grid Grid.Row="3" HorizontalAlignment="Right" Width="75" Grid.RowSpan="2" Margin="0,10,5,0">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="0.3*"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                 </Grid.RowDefinitions>
-                <Button Grid.Row="0" BorderThickness="1" Content="提交" Click="SubmitOnClick" Margin="0,5"
+                <CheckBox x:Name="ReviewCheckBox">审阅模式</CheckBox>
+                <Button Grid.Row="1" BorderThickness="1" Content="提交" Click="SubmitOnClick" Margin="0,5"
                             Background="#6CBCEA"
                             Foreground="White"
                             pu:ButtonHelper.CornerRadius="3"
                             pu:ShadowHelper.Direction="240"/>
-                <Button Grid.Row="1" BorderThickness="1" Content="跳过" Click="SkipOnClick" Margin="0,5"
+                <Button Grid.Row="2" BorderThickness="1" Content="跳过" Click="SkipOnClick" Margin="0,5"
                             Background="#6CBCEA"
                             Foreground="White"
                             pu:ButtonHelper.CornerRadius="3"
                             pu:ShadowHelper.Direction="240"/>
-                <Button Grid.Row="2" BorderThickness="1" Content="上一个" Click="LastOnClick" Margin="0,5"
+                <Button Grid.Row="3" BorderThickness="1" Content="上一个" Click="LastOnClick" Margin="0,5"
                             Background="#5CACDA"
                             Foreground="White"
                             pu:ButtonHelper.CornerRadius="3"

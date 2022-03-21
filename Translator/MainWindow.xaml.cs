@@ -13,6 +13,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using TransAPICSharpDemo;
 
 namespace Translator
 {
@@ -28,8 +29,6 @@ namespace Translator
         public MainWindow()
         {
             InitializeComponent();
-            // SetTransDictAndRefer(new DictObject());
-
         }
 
         private List<string> SerialJson(string enJson, string zhJson)
@@ -67,7 +66,7 @@ namespace Translator
                     }
                 }
 
-                transEntryList = transEntryList.OrderBy(p => p.EnText).ToList();
+                transEntryList = transEntryList.OrderBy(p => p.TranslationKey).ToList();
 
                 transLists = transEntryList;
             }
@@ -83,6 +82,10 @@ namespace Translator
         //添加翻译推进与词典参考
         private void SetTransDictAndRefer(DictObject dictObject)
         {
+            TranslateSelector.ItemsSource = null;
+            TransDict.ItemsSource = null;
+
+            TransHidden1.Visibility = Visibility.Visible;
             TranslateSelector.ItemsSource = dictObject.GetDictTrans();
             TransDict.ItemsSource = dictObject.GetDictRefer();
         }
@@ -134,12 +137,20 @@ namespace Translator
 
         private void NextTransList()
         {
-            while (transLists[transWordIndex].ZhText != "")
+            if (ReviewCheckBox.IsChecked == true)
             {
                 transWordIndex++;
-                if (transWordIndex < transLists.Count) continue;
-                transWordIndex = transLists.Count - 1;
-                break;
+                if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
+            }
+            else
+            {
+                while (transLists[transWordIndex].ZhText != "")
+                {
+                    transWordIndex++;
+                    if (transWordIndex < transLists.Count) continue;
+                    transWordIndex = transLists.Count - 1;
+                    break;
+                }
             }
             TransWordList.SelectedIndex = transWordIndex;
         }
@@ -147,14 +158,18 @@ namespace Translator
         private void TransWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             transWordIndex = TransWordList.SelectedIndex;
-            TransWordList.ScrollIntoView(TransWordList.Items[transWordIndex]);
             if (transWordIndex == -1) return;
+            TransWordList.ScrollIntoView(TransWordList.Items[transWordIndex]);
             OriginText.Text = transLists[TransWordList.SelectedIndex].EnText;
             TransText.Text = transLists[TransWordList.SelectedIndex].ZhText;
             RemoveAllTransRecommend();
             TransProgress.Content = "翻译进度：" + transLists.Count(word => word.ZhText != "") + "/" + transLists.Count;
             KeyName.Content = "当前键名：" + transLists[TransWordList.SelectedIndex].TranslationKey;
-            // SetTransDictAndRefer(new DictObject());
+
+            // var dictObejct = new DictObject();
+            // dictObejct.DictTrans.Add(TransAPI.Contect(OriginText.Text));
+            // SetTransDictAndRefer(dictObejct);
+            TransText.SelectionStart = TransText.Text.Length;
         }
 
         private void GetTransDict1()
@@ -327,8 +342,8 @@ namespace Translator
     {
         public string OriginText = "";
         public string Time = "";
-        public string[] DictTrans = new[] { "银靴子", "银靴" };
-        public string[] DictRefer = new[] { "Silver：银", "Boots：靴子"};
+        public List<string> DictTrans = new();
+        public List<string> DictRefer = new();
 
         public IEnumerable<DictTransList> GetDictTrans()
         {
@@ -347,16 +362,14 @@ namespace Translator
         public string? EnText { get; set; } = "";
 
         private string? _zhText = "";
-        public string Color { get; set; }="red";
-        public string Judge { get; set; }="×";
+        public string Color => ZhText == "" ? "red" : "green";
+        public string Judge => ZhText == "" ? "×" : "√";
         public string? ZhText
         {
             get => _zhText;
             set
             {
                 _zhText = value;
-                Color = "green";
-                Judge = "√";
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ZhText)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Color)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Judge)));
