@@ -14,6 +14,15 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using TransAPICSharpDemo;
+using System.Text.RegularExpressions;
+using System.Xml;
+using ICSharpCode.AvalonEdit.Highlighting;
+using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using ICSharpCode.AvalonEdit.Editing;
+using ICSharpCode.AvalonEdit.Document;
+using ICSharpCode.AvalonEdit.CodeCompletion;
+using System.Windows.Media;
+using ICSharpCode.AvalonEdit;
 
 namespace Translator
 {
@@ -29,6 +38,7 @@ namespace Translator
         public MainWindow()
         {
             InitializeComponent();
+            AvalonEditor.TextArea.TextEntered += TextAreaOnTextEntered;
         }
 
         private List<string> SerialJson(string enJson, string zhJson)
@@ -94,7 +104,7 @@ namespace Translator
         private void TransSelectClick(object sender, RoutedEventArgs e)
         {
             var button = (Button)sender;
-            TransText.Text = button.Content.ToString();
+            AvalonEditor.Text = button.Content.ToString();
         }
 
         // 清空翻译推荐及词典推荐
@@ -115,8 +125,8 @@ namespace Translator
 
         private void SubmitOnClick(object sender, RoutedEventArgs e)
         {
-            if (TransText.Text == "") return;
-            transLists[transWordIndex].ZhText = TransText.Text;
+            if (AvalonEditor.Text == "") return;
+            transLists[transWordIndex].ZhText = AvalonEditor.Text.Replace("\r", "");
             SaveFile();
             NextTransList();
         }
@@ -154,14 +164,14 @@ namespace Translator
             }
             TransWordList.SelectedIndex = transWordIndex;
         }
-
         private void TransWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             transWordIndex = TransWordList.SelectedIndex;
             if (transWordIndex == -1) return;
             TransWordList.ScrollIntoView(TransWordList.Items[transWordIndex]);
-            OriginText.Text = transLists[TransWordList.SelectedIndex].EnText;
-            TransText.Text = transLists[TransWordList.SelectedIndex].ZhText;
+            AvalonText.Text = transLists[TransWordList.SelectedIndex].EnText;
+            FindFormat();
+            AvalonEditor.Text = transLists[TransWordList.SelectedIndex].ZhText;
             RemoveAllTransRecommend();
             TransProgress.Content = "翻译进度：" + transLists.Count(word => word.ZhText != "") + "/" + transLists.Count;
             KeyName.Content = "当前键名：" + transLists[TransWordList.SelectedIndex].TranslationKey;
@@ -169,7 +179,7 @@ namespace Translator
             // var dictObejct = new DictObject();
             // dictObejct.DictTrans.Add(TransAPI.Contect(OriginText.Text));
             // SetTransDictAndRefer(dictObejct);
-            TransText.SelectionStart = TransText.Text.Length;
+            AvalonEditor.SelectionStart = AvalonEditor.Text.Length;
         }
 
         private void GetTransDict1()
@@ -276,36 +286,96 @@ namespace Translator
 
         private void Grid_Loaded(object sender, RoutedEventArgs e)
         {
+            string name = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + ".mc.xshd";
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            using (System.IO.Stream s = assembly.GetManifestResourceStream(name))
+            {
+                using (XmlTextReader reader = new XmlTextReader(s))
+                {
+                    var xshd = HighlightingLoader.LoadXshd(reader);
+                    AvalonEditor.SyntaxHighlighting = HighlightingLoader.Load(xshd, HighlightingManager.Instance);
+                    AvalonText.SyntaxHighlighting = HighlightingLoader.Load(xshd, HighlightingManager.Instance);
+                }
+            }
+
             OpenFile();
         }
 
-        private void TransText_KeyDown(object sender, KeyEventArgs e)
+        private List<string> formatList1 = new();
+        private List<string> formatList2 = new();
+        private List<string> match = new();
+
+        private void FindFormat()
         {
-            if (e.Key != Key.Enter) return;
-            var TextCount = TransText.Text.Split('\n').Length;
-            var OriginCount = OriginText.Text.Split('\n').Length;
-            if (TextCount >= OriginCount)
+            // (§[0-9a-f])(.*?)(?=§|$)匹配颜色代码
+            // %(\d+\$)?[a-hs%]匹配字符串格式化代码
+            formatList1 = new List<string>();
+            formatList2 = new List<string>();
+            foreach (Match m in new Regex(@"%(\d+\$)[a-hs%]").Matches(AvalonText.Text))
+                formatList1.Add(m.Value);
+            foreach (Match m in new Regex(@"%[a-hs%]").Matches(AvalonText.Text))
+                formatList2.Add(m.Value);
+        }
+
+        private void AvalonEditor_OnTextChanged(object sender, EventArgs e)
+        {
+            match = new List<string>();
+            WrongHint.Content = "";
+            var match1 = (from Match match in new Regex(@"%(\d+\$)[a-hs%]").Matches(AvalonEditor.Text) select match.Value).ToList();
+            var match2 = (from Match match in new Regex(@"%[a-hs%]").Matches(AvalonEditor.Text) select match.Value).ToList();
+
+            if (match2.Count <= formatList2.Count && match2.SequenceEqual(formatList2.Take(match2.Count)))
             {
-                if (TransText.Text.EndsWith("\n"))
-                    TransText.Text = TransText.Text.Substring(0, TransText.Text.Length - 2);
-                transLists[transWordIndex].ZhText = TransText.Text;
-                SaveFile();
-                NextTransList();
-                return;
+                if (match2.Count != formatList2.Count)
+                    match.Add(formatList2[match2.Count]);
             }
-            if (TransText.SelectionLength != 0)
-                TransText.SelectedText = "\n";
             else
+                WrongHint.Content = "翻译文本的格式化字符与原文不匹配";
+            if (match1.Count(formatList1.Contains) == match1.Count && match1.Count <= formatList1.Count)
+                match.AddRange(formatList1.Where(s => !match1.Contains(s)).ToList());
+            else
+                WrongHint.Content = "翻译文本的格式化字符与原文不匹配";
+        }
+
+        private void TextAreaOnTextEntered(object sender, TextCompositionEventArgs e)
+        {
+            
+            switch (e.Text)
             {
-                var selectIndex = TransText.SelectionStart;
-                if (TransText.Text.Length == selectIndex)
-                    TransText.Text += "\n";
-                else
-                    TransText.SelectedText = "\n";
-                TransText.SelectionLength = 0;
-                TransText.SelectionStart = selectIndex + 1;
+                case "%":
+                {
+                    if (match.Count == 0) break;
+                    _completionWindow = new CompletionWindow(AvalonEditor.TextArea);
+                    
+                    var data = _completionWindow.CompletionList.CompletionData;
+                    foreach (var s in match)
+                        data.Add(new CompletionData(s, AvalonEditor));
+                    _completionWindow.CompletionList.SelectedItem = _completionWindow.CompletionList.CompletionData[0];
+                    _completionWindow.Show();
+
+                    _completionWindow.Closed += (o, args) => _completionWindow = null;
+                    break;
+                }
+                case "\n":
+                {
+                    if (AvalonEditor.LineCount <= AvalonText.LineCount) break;
+                    if (AvalonEditor.SelectionStart != AvalonEditor.Text.Length)
+                    {
+                        AvalonEditor.SelectionStart -= 1;
+                        AvalonEditor.SelectionLength = 1;
+                        AvalonEditor.SelectedText = "";
+                    }
+                    if (AvalonEditor.Text.EndsWith("\n"))
+                        AvalonEditor.Text = AvalonEditor.Text.Substring(0, AvalonEditor.Text.Length - 2);
+                    transLists[transWordIndex].ZhText = AvalonEditor.Text.Replace("\r", "");
+                    SaveFile();
+                    NextTransList();
+                    break;
+                }
             }
         }
+        
+        private CompletionWindow _completionWindow;
     }
 
     public class DictTransList
@@ -376,5 +446,35 @@ namespace Translator
             }
         }
         public event PropertyChangedEventHandler? PropertyChanged;
+    }
+        
+    public class CompletionData : ICompletionData
+    {
+        public CompletionData(string text, TextEditor avalon)
+        {
+            Text = text;
+            Avalon = avalon;
+        }
+
+        public TextEditor Avalon;
+
+        public ImageSource Image => null;
+
+        public string Text { get; }
+
+        public object Content => Text;
+
+        public object Description => "选择" + this.Text;
+
+        /// <inheritdoc />
+        public double Priority { get; }
+
+        public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
+        {
+            Avalon.SelectedText = Text.Substring(1);
+            Avalon.SelectionLength = 0;
+            Avalon.SelectionStart += Text.Length - 1;
+            // textArea.Document.Replace(completionSegment, Text);
+        }
     }
 }

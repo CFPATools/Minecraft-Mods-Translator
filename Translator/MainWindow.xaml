@@ -8,7 +8,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:pu="clr-namespace:Panuon.UI.Silver;assembly=Panuon.UI.Silver"
+        xmlns:pu="clr-namespace:Panuon.UI.Silver;assembly=Panuon.UI.Silver" xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         mc:Ignorable="d">
     <Window.Resources>
         <RoutedUICommand x:Key="onCtrlSPress"/>
@@ -110,7 +110,13 @@
                     <RowDefinition Height="4*"></RowDefinition>
                 </Grid.RowDefinitions>
                 <Label Grid.Row="0" Content="原文" Background="White"></Label>
-                <TextBox Grid.Row="1" x:Name="OriginText" Text="" IsReadOnly="True" VerticalAlignment="Stretch" VerticalContentAlignment="Center"></TextBox>
+                <avalonEdit:TextEditor
+                    Grid.Row="1"
+                    Name="AvalonText"
+                    IsReadOnly="True"
+                    BorderBrush="Gray"
+                    BorderThickness="1"
+                    ShowLineNumbers="True"/>
             </Grid>
             <Grid Grid.Row="2">
                 <Grid.RowDefinitions>
@@ -118,7 +124,14 @@
                     <RowDefinition Height="4*"></RowDefinition>
                 </Grid.RowDefinitions>
                 <Label Grid.Row="0" Content="翻译" Background="White"></Label>
-                <TextBox Grid.Row="1" x:Name="TransText" Text="" VerticalAlignment="Stretch" KeyDown="TransText_KeyDown" />
+                <Label Grid.Row="0" Content="" Background="White" Foreground="#EF5350" HorizontalAlignment="Right" x:Name="WrongHint"></Label>
+                <avalonEdit:TextEditor
+                    Grid.Row="1"
+                    Name="AvalonEditor"
+                    BorderBrush="Gray"
+                    BorderThickness="1"
+                    ShowLineNumbers="True"
+                    TextChanged="AvalonEditor_OnTextChanged"/>
             </Grid>
             <Grid Grid.Row="3" Visibility="Hidden" x:Name="TransHidden1">
                 <Grid.RowDefinitions>
