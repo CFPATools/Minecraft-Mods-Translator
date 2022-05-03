@@ -165,7 +165,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Grid>
-            <Grid Grid.Row="4" Visibility="Hidden">
+            <Grid Grid.Row="4" Visibility="Hidden" x:Name="TransHidden2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="7*"></ColumnDefinition>
                     <ColumnDefinition Width="*"></ColumnDefinition>

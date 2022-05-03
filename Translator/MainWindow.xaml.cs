@@ -4,17 +4,16 @@ using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Newtonsoft.Json;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
-using TransAPICSharpDemo;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
@@ -34,6 +33,7 @@ namespace Translator
         private List<TransEntry> transLists = new();
         private int transWordIndex = 0;
         private string FileDir = "";
+        private string EnJsonText = "";
 
         public MainWindow()
         {
@@ -41,39 +41,48 @@ namespace Translator
             AvalonEditor.TextArea.TextEntered += TextAreaOnTextEntered;
         }
 
+        private static Hashtable SerialText(string json)
+        {
+            var hash = new Hashtable();
+            var reg = Regex.Matches(json, @"""[^""]+""\:\s*""[^""]+""");
+            foreach (Match r in reg)
+            {
+                var str = r.Value;
+                var key = Regex.Match(str, @"(?<="")[^""]+(?=""\:\s*""[^""]+"")").Value;
+                if (key.StartsWith("_")) continue;
+                var value = Regex.Match(str, @"(?<=""[^""]+""\:\s*"")[^""]+(?="")").Value;
+                hash.Add(key, value);
+            }
+            
+            return hash;
+        }
+
         private List<string> SerialJson(string enJson, string zhJson)
         {
             var errorKey = new List<string>();
             try
             {
-                var en = JsonConvert.DeserializeObject<Hashtable>(enJson);
-                var zh = JsonConvert.DeserializeObject<Hashtable>(zhJson);
-                // var en = JsonDocument.Parse(enJson).RootElement.EnumerateObject().Where(obj => !obj.Name.StartsWith("_"));
-                // var zh = JsonDocument.Parse(zhJson).RootElement.EnumerateObject().Where(obj => !obj.Name.StartsWith("_"));
+                EnJsonText = enJson;
+                var en = SerialText(enJson);
+                var zh = SerialText(zhJson);
                 var transEntryList = new List<TransEntry>();
                 var hashTable = new Hashtable();
                 foreach (var key in en.Keys)
                 {
-                    if (key.ToString().StartsWith("_")) continue;
-                    var transEntry = new TransEntry()
+                    var transEntry = new TransEntry
                     {
                         TranslationKey = key.ToString(),
                         EnText = en[key].ToString()
                     };
                     transEntryList.Add(transEntry);
-                    hashTable.Add(key.ToString(), transEntryList.Count - 1);
+                    hashTable.Add(key.ToString(), transEntry);
                 }
                 foreach (var key in zh.Keys)
                 {
-                    if (key.ToString().StartsWith("_")) continue;
                     if (hashTable.Contains(key.ToString()))
-                    {
-                        transEntryList[(int)hashTable[key.ToString()]].ZhText = zh[key].ToString();
-                    }
+                        ((TransEntry)hashTable[key.ToString()]).ZhText = zh[key].ToString();
                     else
-                    {
                         errorKey.Add(key.ToString());
-                    }
                 }
 
                 transEntryList = transEntryList.OrderBy(p => p.TranslationKey).ToList();
@@ -90,14 +99,12 @@ namespace Translator
         }
 
         //添加翻译推进与词典参考
-        private void SetTransDictAndRefer(DictObject dictObject)
+        private void SetTransDictAndReferHidden()
         {
             TranslateSelector.ItemsSource = null;
             TransDict.ItemsSource = null;
-
-            TransHidden1.Visibility = Visibility.Visible;
-            TranslateSelector.ItemsSource = dictObject.GetDictTrans();
-            TransDict.ItemsSource = dictObject.GetDictRefer();
+            TransHidden1.Visibility = Visibility.Hidden;
+            TransHidden2.Visibility = Visibility.Hidden;
         }
 
         // 翻译推荐点击触发事件
@@ -164,7 +171,7 @@ namespace Translator
             }
             TransWordList.SelectedIndex = transWordIndex;
         }
-        private void TransWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void TransWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             transWordIndex = TransWordList.SelectedIndex;
             if (transWordIndex == -1) return;
@@ -172,23 +179,31 @@ namespace Translator
             AvalonText.Text = transLists[TransWordList.SelectedIndex].EnText;
             FindFormat();
             AvalonEditor.Text = transLists[TransWordList.SelectedIndex].ZhText;
+            AvalonEditor.SelectionStart = AvalonEditor.Text.Length;
             RemoveAllTransRecommend();
             TransProgress.Content = "翻译进度：" + transLists.Count(word => word.ZhText != "") + "/" + transLists.Count;
             KeyName.Content = "当前键名：" + transLists[TransWordList.SelectedIndex].TranslationKey;
+            SetTransDictAndReferHidden();
 
-            // var dictObejct = new DictObject();
-            // dictObejct.DictTrans.Add(TransAPI.Contect(OriginText.Text));
-            // SetTransDictAndRefer(dictObejct);
-            AvalonEditor.SelectionStart = AvalonEditor.Text.Length;
+            // await GetTransDict();
         }
 
-        private void GetTransDict1()
+        private async Task GetTransDict()
         {
-            Thread.Sleep(2);
+            var text = await TransApi.Contect(AvalonText.Text);
+            var dictObject = new DictObject();
+            dictObject.DictTrans.Add(text);
+            Dispatcher.Invoke(() =>
+            {
+                TransHidden1.Visibility = Visibility.Visible;
+                TranslateSelector.ItemsSource = dictObject.GetDictTrans();
+                // TransHidden2.Visibility = Visibility.Visible;
+                // TransDict.ItemsSource = dictObject.GetDictRefer();
+            });
         }
 
         //将C#字符串值转换为转义的字符串文字
-        public static string ToLiteral(string input)
+        private static string ToLiteral(string input)
         {
             using var writer = new StringWriter();
             using var provider = CodeDomProvider.CreateProvider("CSharp");
@@ -240,20 +255,10 @@ namespace Translator
 
         private bool SaveFile()
         {
-            var jsonText = new StringBuilder();
-            jsonText.Append("{\n");
-            foreach (var transEntry in transLists.Where(transEntry => transEntry.ZhText != ""))
-            {
-                jsonText.Append('\t');
-                jsonText.Append(ToLiteral(transEntry.TranslationKey));
-                jsonText.Append(':');
-                jsonText.Append(ToLiteral(transEntry.ZhText));
-                jsonText.Append(',');
-                jsonText.Append('\n');
-            }
-
-            jsonText.Remove(jsonText.Length - 2, 1);
-            jsonText.Append('}');
+            var jsonText = EnJsonText;
+            foreach (var transEntry in transLists)
+                jsonText = jsonText.Replace('"' + transEntry.EnText + '"', ToLiteral(transEntry.ZhText));
+            
             try
             {
                 File.WriteAllText(Path.Combine(FileDir, "zh_cn.json"), jsonText.ToString());
