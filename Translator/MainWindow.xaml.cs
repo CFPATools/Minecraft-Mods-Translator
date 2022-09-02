@@ -14,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Forms.VisualStyles;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
@@ -45,11 +46,18 @@ namespace Translator
         {
             var hash = new Hashtable();
             var reg = Regex.Matches(json, @"""[^""]+""\:\s*""[^""]+""");
+            var count = new List<string>();
             foreach (Match r in reg)
             {
                 var str = r.Value;
                 var key = Regex.Match(str, @"(?<="")[^""]+(?=""\:\s*""[^""]+"")").Value;
-                if (key.StartsWith("_")) continue;
+                if (count.Contains(key)) continue;
+                if (hash.Contains(key))
+                {
+                    hash.Remove(key);
+                    count.Add(key);
+                    continue;
+                }
                 var value = Regex.Match(str, @"(?<=""[^""]+""\:\s*"")[^""]+(?="")").Value;
                 hash.Add(key, value);
             }
@@ -154,28 +162,44 @@ namespace Translator
 
         private void NextTransList()
         {
-            if (ReviewCheckBox.IsChecked == true)
+            while (true)
             {
                 transWordIndex++;
-                if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
-            }
-            else
-            {
-                while (transLists[transWordIndex].ZhText != "")
+                if (ReviewCheckBox.IsChecked == true)
                 {
-                    transWordIndex++;
-                    if (transWordIndex < transLists.Count) continue;
-                    transWordIndex = transLists.Count - 1;
+                    if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
                     break;
                 }
+                
+                while (transWordIndex < transLists.Count)
+                {
+                    if (MarkCheckBox.IsChecked == true) 
+                    {
+                        if (transLists[transWordIndex].ZhText == "" ||
+                            transLists[transWordIndex].ZhText == transLists[transWordIndex].EnText)
+                        {
+                            break;
+                        }
+                    }
+                    else if (transLists[transWordIndex].ZhText == "")
+                    {
+                        break;
+                    }
+                    transWordIndex++;
+                }
+                if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
+                break;
             }
             TransWordList.SelectedIndex = transWordIndex;
         }
+
         private async void TransWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             transWordIndex = TransWordList.SelectedIndex;
             if (transWordIndex == -1) return;
             TransWordList.ScrollIntoView(TransWordList.Items[transWordIndex]);
+            AvalonEditor.SelectionStart = 0;
+            AvalonEditor.SelectionLength = 0;
             AvalonText.Text = transLists[TransWordList.SelectedIndex].EnText;
             FindFormat();
             AvalonEditor.Text = transLists[TransWordList.SelectedIndex].ZhText;
@@ -184,13 +208,16 @@ namespace Translator
             TransProgress.Content = "翻译进度：" + transLists.Count(word => word.ZhText != "") + "/" + transLists.Count;
             KeyName.Content = "当前键名：" + transLists[TransWordList.SelectedIndex].TranslationKey;
             SetTransDictAndReferHidden();
-
-            // await GetTransDict();
+            if (TransCheckBox.IsChecked == true)
+            {
+                await GetTransDict();
+            }
         }
 
         private async Task GetTransDict()
         {
-            var text = await TransApi.Contect(AvalonText.Text);
+            await Task.Delay(new Random().Next(50,300));
+            var text = await TransApi.Google.Contect(AvalonText.Text);
             var dictObject = new DictObject();
             dictObject.DictTrans.Add(text);
             Dispatcher.Invoke(() =>
@@ -364,15 +391,7 @@ namespace Translator
                 case "\n":
                 {
                     if (AvalonEditor.LineCount <= AvalonText.LineCount) break;
-                    if (AvalonEditor.SelectionStart != AvalonEditor.Text.Length)
-                    {
-                        AvalonEditor.SelectionStart -= 1;
-                        AvalonEditor.SelectionLength = 1;
-                        AvalonEditor.SelectedText = "";
-                    }
-                    if (AvalonEditor.Text.EndsWith("\n"))
-                        AvalonEditor.Text = AvalonEditor.Text.Substring(0, AvalonEditor.Text.Length - 2);
-                    transLists[transWordIndex].ZhText = AvalonEditor.Text.Replace("\r", "");
+                    AvalonEditor.Undo();
                     SaveFile();
                     NextTransList();
                     break;
@@ -381,6 +400,32 @@ namespace Translator
         }
         
         private CompletionWindow _completionWindow;
+
+        private void MarkCheckBox_OnChecked(object sender, RoutedEventArgs e)
+        {
+            foreach (var entry in transLists)
+            {
+                entry.SameCheck = true;
+            }
+        }
+
+        private void MarkCheckBox_OnUnchecked(object sender, RoutedEventArgs e)
+        {
+            foreach (var entry in transLists)
+            {
+                entry.SameCheck = false;
+            }
+        }
+
+        private async void TransCheckBox_OnChecked(object sender, RoutedEventArgs e)
+        {
+            await GetTransDict();
+        }
+
+        private void TransCheckBox_OnUnchecked(object sender, RoutedEventArgs e)
+        {
+            SetTransDictAndReferHidden();
+        }
     }
 
     public class DictTransList
@@ -433,11 +478,24 @@ namespace Translator
 
     public class TransEntry : INotifyPropertyChanged
     {
+        private bool _sameCheck = false;
+
+        public bool SameCheck
+        {
+            get => _sameCheck;
+            set
+            {
+                _sameCheck = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SameCheck)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Background)));
+            }
+        }
         public string TranslationKey = "";
         public string? EnText { get; set; } = "";
 
         private string? _zhText = "";
         public string Color => ZhText == "" ? "red" : "green";
+        public string Background => ZhText == EnText && SameCheck ? "Brown" : "Black";
         public string Judge => ZhText == "" ? "×" : "√";
         public string? ZhText
         {
@@ -448,6 +506,7 @@ namespace Translator
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ZhText)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Color)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Judge)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Background)));
             }
         }
         public event PropertyChangedEventHandler? PropertyChanged;
