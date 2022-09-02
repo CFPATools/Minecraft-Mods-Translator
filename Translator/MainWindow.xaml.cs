@@ -390,8 +390,8 @@ namespace Translator
                 }
                 case "\n":
                 {
-                    if (AvalonEditor.LineCount <= AvalonText.LineCount) break;
-                    AvalonEditor.Undo();
+                    if (AvalonEditor.LineCount > AvalonText.LineCount) AvalonEditor.Undo();
+                    transLists[transWordIndex].ZhText = AvalonEditor.Text.Replace("\r", "");
                     SaveFile();
                     NextTransList();
                     break;
