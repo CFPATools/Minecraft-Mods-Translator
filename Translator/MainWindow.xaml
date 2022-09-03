@@ -254,7 +254,7 @@
                 <ListBox Background="White" x:Name="TransWordList" SelectionChanged="TransWordList_OnSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Hidden">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="Beige" BorderThickness="1">
+                            <Border BorderBrush="LightGray" BorderThickness="1">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Background="White">
                                     <TextBlock 
                                         VerticalAlignment="Center"
@@ -265,12 +265,14 @@
                                             Text="{Binding EnText}"
                                             Margin="5,0"
                                             Height="20"
-                                            Foreground="{Binding Background}"/>
+                                            Foreground="{Binding Background}"
+                                            FontWeight="{Binding FontBold}"/>
                                         <TextBlock
                                             Text="{Binding ZhText}"
                                             Margin="5,0"
                                             Height="20"
-                                            Foreground="{Binding Background}"/>
+                                            Foreground="{Binding Background}"
+                                            FontWeight="{Binding FontBold}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -314,7 +316,7 @@
             </ListBox>
         </Grid>
         
-        <Grid Grid.ColumnSpan="3" Background="White" x:Name="FirstPage">
+        <Grid Grid.ColumnSpan="3" Background="White" x:Name="FirstPage" Visibility="Hidden">
             <Button Height="40" Width="80" Click="OpenFileOnClick">打开文件</Button>
         </Grid>
     </Grid>

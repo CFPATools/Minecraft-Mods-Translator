@@ -37,6 +37,7 @@ public partial class MainWindow
     private int transWordIndex = 0;
     private string FileDir = "";
     private string EnJsonText = "";
+    private ScrollViewer ScrollViewer;
 
     public MainWindow()
     {
@@ -48,12 +49,12 @@ public partial class MainWindow
     private static Hashtable SerialText(string json)
     {
         var hash = new Hashtable();
-        var reg = Regex.Matches(json, @"""[^""]+""\:\s*""[^""]+""");
+        var reg = Regex.Matches(json, @"""[^""]+""\:\s*""((\\\S)|[^""])+""");
         var count = new List<string>();
         foreach (Match r in reg)
         {
             var str = r.Value;
-            var key = Regex.Match(str, @"(?<="")[^""]+(?=""\:\s*""[^""]+"")").Value;
+            var key = Regex.Match(str, @"(?<="")[^""]+(?=""\:\s*""((\\\S)|[^""])+"")").Value;
             if (count.Contains(key)) continue;
             if (hash.Contains(key))
             {
@@ -61,11 +62,39 @@ public partial class MainWindow
                 count.Add(key);
                 continue;
             }
-            var value = Regex.Match(str, @"(?<=""[^""]+""\:\s*"")[^""]+(?="")").Value;
+            var value = Regex.Match(str, @"(?<=""[^""]+""\:\s*"")((\\\S)|[^""])+(?="")").Value;
+            value = value
+                .Replace("\\\"", "\"")
+                .Replace("\\\\", "\\")
+                .Replace("\\/", "/")
+                .Replace("\\b", "\b")
+                .Replace("\\f", "\f")
+                .Replace("\\n", "\n")
+                .Replace("\\r", "\r")
+                .Replace("\\t", "\t")
+                .Replace("\\v", "\v")
+                .Replace("\\0", "\0")
+                .Replace("\\a", "\a");
             hash.Add(key, value);
         }
         
         return hash;
+    }
+    
+    //将C#字符串值转换为转义的字符串文字
+    private static string ToLiteral(string input)
+    {
+        return "\"" + input
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t")
+            .Replace("\n", "\\n")
+            .Replace("\0", "\\0")
+            .Replace("\a", "\\a")
+            .Replace("\b", "\\b")
+            .Replace("\f", "\\f")
+            .Replace("\v", "\\v") + "\"";
     }
 
     private List<string> SerialJson(string enJson, string zhJson)
@@ -151,8 +180,6 @@ public partial class MainWindow
 
     private void SkipOnClick(object sender, RoutedEventArgs e)
     {
-        transWordIndex++;
-        if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
         NextTransList();
     }
 
@@ -166,15 +193,8 @@ public partial class MainWindow
     private void NextTransList()
     {
         SearchBox.Text = "";
-        while (true)
-        {
-            transWordIndex++;
-            if (ReviewCheckBox.IsOn)
-            {
-                if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
-                break;
-            }
-            
+        transWordIndex++;
+        if (!ReviewCheckBox.IsOn)
             while (transWordIndex < transLists.Count)
             {
                 if (MarkCheckBox.IsOn) 
@@ -191,10 +211,28 @@ public partial class MainWindow
                 }
                 transWordIndex++;
             }
-            if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
-            break;
-        }
+        if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
         TransWordList.SelectedIndex = transWordIndex;
+        
+        ScrollViewer.ScrollToHorizontalOffset(0);
+    }
+    
+    private ScrollViewer GetScrollViewer(DependencyObject parent)
+    {
+        if (parent == null)
+            return null;
+        var count = VisualTreeHelper.GetChildrenCount(parent);
+
+        for (int i = 0; i < count; i++)
+        {
+            var item = VisualTreeHelper.GetChild(parent, i);
+            if (item is ScrollViewer viewer)
+            {
+                return viewer;
+            }
+            return GetScrollViewer(item);
+        }
+        return null;
     }
 
     private async void TransWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -231,15 +269,6 @@ public partial class MainWindow
             // TransHidden2.Visibility = Visibility.Visible;
             // TransDict.ItemsSource = dictObject.GetDictRefer();
         });
-    }
-
-    //将C#字符串值转换为转义的字符串文字
-    private static string ToLiteral(string input)
-    {
-        using var writer = new StringWriter();
-        using var provider = CodeDomProvider.CreateProvider("CSharp");
-        provider.GenerateCodeFromExpression(new CodePrimitiveExpression(input), writer, new CodeGeneratorOptions { IndentString = "\t" });
-        return writer.ToString().Replace($"\" +{Environment.NewLine}\t\"", "");
     }
 
     private void OpenFileOnClick(object sender, RoutedEventArgs e)
@@ -334,6 +363,8 @@ public partial class MainWindow
                 AvalonText.SyntaxHighlighting = HighlightingLoader.Load(xshd, HighlightingManager.Instance);
             }
         }
+        FirstPage.Visibility = Visibility.Visible;
+        ScrollViewer = GetScrollViewer(TransWordList);
     }
 
     private List<string> formatList1 = new();
@@ -511,6 +542,7 @@ public class TransEntry : INotifyPropertyChanged
             _sameCheck = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SameCheck)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Background)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FontBold)));
         }
     }
     public string TranslationKey = "";
@@ -519,6 +551,7 @@ public class TransEntry : INotifyPropertyChanged
     private string? _zhText = "";
     public string Color => ZhText == "" ? "red" : "green";
     public string Background => ZhText == EnText && SameCheck ? "Brown" : "Black";
+    public string FontBold => ZhText == EnText && SameCheck ? "Bold" : "Normal";
     public string Judge => ZhText == "" ? "×" : "√";
     public string? ZhText
     {
@@ -530,6 +563,7 @@ public class TransEntry : INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Color)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Judge)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Background)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FontBold)));
         }
     }
     public event PropertyChangedEventHandler? PropertyChanged;
