@@ -307,7 +307,7 @@ public partial class MainWindow
 
     private async Task SyncScrollPos()
     {
-        await Task.Delay(1);
+        await Task.Delay(100);
         Dispatcher.Invoke(() =>
         {
             ScrollViewer.ScrollToHorizontalOffset(0);
