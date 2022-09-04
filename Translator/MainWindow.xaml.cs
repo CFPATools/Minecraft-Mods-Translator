@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Mime;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -36,18 +37,18 @@ public partial class MainWindow
     private List<TransEntry> searchLists = new();
     private int transWordIndex = 0;
     private string FileDir = "";
-    private string EnJsonText = "";
+    private StringBuilder EnJsonText = new();
     private ScrollViewer ScrollViewer;
 
     public MainWindow()
     {
         InitializeComponent();
         AvalonEditor.TextArea.TextEntered += TextAreaOnTextEntered;
-        
     }
 
-    private static Hashtable SerialText(string json)
+    private static Hashtable SerialText(string json, out List<string> keys)
     {
+        keys = new List<string>();
         var hash = new Hashtable();
         var reg = Regex.Matches(json, @"""[^""]+""\:\s*""((\\\S)|[^""])+""");
         var count = new List<string>();
@@ -55,6 +56,7 @@ public partial class MainWindow
         {
             var str = r.Value;
             var key = Regex.Match(str, @"(?<="")[^""]+(?=""\:\s*""((\\\S)|[^""])+"")").Value;
+            keys.Add(key);
             if (count.Contains(key)) continue;
             if (hash.Contains(key))
             {
@@ -77,55 +79,44 @@ public partial class MainWindow
                 .Replace("\\a", "\a");
             hash.Add(key, value);
         }
-        
+
         return hash;
-    }
-    
-    //将C#字符串值转换为转义的字符串文字
-    private static string ToLiteral(string input)
-    {
-        return "\"" + input
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t")
-            .Replace("\n", "\\n")
-            .Replace("\0", "\\0")
-            .Replace("\a", "\\a")
-            .Replace("\b", "\\b")
-            .Replace("\f", "\\f")
-            .Replace("\v", "\\v") + "\"";
     }
 
     private List<string> SerialJson(string enJson, string zhJson)
     {
+        EnJsonText = new StringBuilder();
         var errorKey = new List<string>();
         try
         {
-            EnJsonText = enJson;
-            var en = SerialText(enJson);
-            var zh = SerialText(zhJson);
+            EnJsonText.Append(enJson);
+            var en = SerialText(enJson, out var keys);
             var transEntryList = new List<TransEntry>();
             var hashTable = new Hashtable();
-            foreach (var key in en.Keys)
+            foreach (var key in keys)
             {
                 var transEntry = new TransEntry
                 {
-                    TranslationKey = key.ToString(),
-                    EnText = en[key].ToString()
+                    TranslationKey = key,
+                    EnText = en[key].ToString(),
+                    MemoryText = ToLiteral(en[key].ToString())
                 };
                 transEntryList.Add(transEntry);
-                hashTable.Add(key.ToString(), transEntry);
+                hashTable.Add(key, transEntry);
             }
+            var zh = SerialText(zhJson, out var placeholder);
             foreach (var key in zh.Keys)
             {
                 if (hashTable.Contains(key.ToString()))
+                {
                     ((TransEntry)hashTable[key.ToString()]).ZhText = zh[key].ToString();
+                    ReplaceItem((TransEntry)hashTable[key.ToString()]);
+                }
                 else
                     errorKey.Add(key.ToString());
             }
 
-            transEntryList = transEntryList.OrderBy(p => p.TranslationKey).ToList();
+            // transEntryList = transEntryList.OrderBy(p => p.TranslationKey).ToList();
 
             transLists = transEntryList;
         }
@@ -135,6 +126,8 @@ public partial class MainWindow
             return new List<string>();
         }
         AddTransWordList(transLists);
+        
+        ScrollViewer.ScrollToHorizontalOffset(0);
         return errorKey;
     }
 
@@ -168,12 +161,15 @@ public partial class MainWindow
         TransWordList.ItemsSource = translist;
         TransWordList.SelectedIndex = transWordIndex;
         NextTransList();
+        
+        ScrollViewer.ScrollToHorizontalOffset(0);
     }
 
     private void SubmitOnClick(object sender, RoutedEventArgs e)
     {
         if (AvalonEditor.Text == "") return;
         transLists[transWordIndex].ZhText = AvalonEditor.Text.Replace("\r", "");
+        ReplaceItem(transLists[transWordIndex]);
         SaveFile();
         NextTransList();
     }
@@ -276,7 +272,7 @@ public partial class MainWindow
         OpenFile();
     }
 
-    private void OpenFile()
+    private async Task OpenFile()
     {
         var fileDialog = new Microsoft.Win32.OpenFileDialog
         {
@@ -306,23 +302,31 @@ public partial class MainWindow
             SerialJson(enAllText, "{}");
         }
         FirstPage.Visibility = Visibility.Hidden;
+        await SyncScrollPos();
+    }
+
+    private async Task SyncScrollPos()
+    {
+        await Task.Delay(1);
+        Dispatcher.Invoke(() =>
+        {
+            ScrollViewer.ScrollToHorizontalOffset(0);
+        });
     }
 
     private void SaveFileOnClick(object sender, RoutedEventArgs e)
     {
+        foreach (var transEntry in transLists)
+            ReplaceItem(transEntry);
         if (SaveFile())
             SaveFloatWindow();
     }
 
     private bool SaveFile()
     {
-        var jsonText = EnJsonText;
-        foreach (var transEntry in transLists)
-            jsonText = jsonText.Replace('"' + transEntry.EnText + '"', ToLiteral(transEntry.ZhText));
-        
         try
         {
-            File.WriteAllText(Path.Combine(FileDir, "zh_cn.json"), jsonText.ToString());
+            File.WriteAllText(Path.Combine(FileDir, "zh_cn.json"), EnJsonText.ToString());
             return true;
         }
         catch (Exception exception)
@@ -330,6 +334,29 @@ public partial class MainWindow
             MessageBox.Show("文件保存出错");
             return false;
         }
+    }
+
+    private void ReplaceItem(TransEntry t)
+    {
+        if (t.MemoryText == ToLiteral(t.ZhText)) return;
+        EnJsonText.Replace(t.MemoryText, ToLiteral(t.ZhText));
+        t.MemoryText = ToLiteral(t.ZhText);
+    }
+
+    //将C#字符串值转换为转义的字符串文字
+    private static string ToLiteral(string input)
+    {
+        return "\"" + input
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t")
+            .Replace("\n", "\\n")
+            .Replace("\0", "\\0")
+            .Replace("\a", "\\a")
+            .Replace("\b", "\\b")
+            .Replace("\f", "\\f")
+            .Replace("\v", "\\v") + "\"";
     }
 
     private void SaveFloatWindow()
@@ -346,6 +373,8 @@ public partial class MainWindow
 
     private void CtrlSOnExecuted(object sender, ExecutedRoutedEventArgs e)
     {
+        foreach (var transEntry in transLists)
+            ReplaceItem(transEntry);
         if (SaveFile())
             SaveFloatWindow();
     }
@@ -365,6 +394,8 @@ public partial class MainWindow
         }
         FirstPage.Visibility = Visibility.Visible;
         ScrollViewer = GetScrollViewer(TransWordList);
+        
+        ScrollViewer.ScrollToHorizontalOffset(0);
     }
 
     private List<string> formatList1 = new();
@@ -426,6 +457,7 @@ public partial class MainWindow
             {
                 if (AvalonEditor.LineCount > AvalonText.LineCount) AvalonEditor.Undo();
                 transLists[transWordIndex].ZhText = AvalonEditor.Text.Replace("\r", "");
+                ReplaceItem(transLists[transWordIndex]);
                 SaveFile();
                 NextTransList();
                 break;
@@ -532,6 +564,8 @@ public class DictObject
 
 public class TransEntry : INotifyPropertyChanged
 {
+    public string MemoryText = "";
+    
     private bool _sameCheck = false;
 
     public bool SameCheck

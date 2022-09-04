@@ -317,7 +317,20 @@
         </Grid>
         
         <Grid Grid.ColumnSpan="3" Background="White" x:Name="FirstPage" Visibility="Hidden">
-            <Button Height="40" Width="80" Click="OpenFileOnClick">打开文件</Button>
+            <StackPanel VerticalAlignment="Center">
+                <Button Height="40" Width="80" Click="OpenFileOnClick">打开文件</Button>
+                <!-- <Separator Opacity="0" Height="50"/> -->
+                <!-- <StackPanel x:Name="Progress"> -->
+                <!--     <TextBox x:Name="ProgressText"/> -->
+                <!--     <mah:MetroProgressBar -->
+                <!--         Width="400" -->
+                <!--         Margin="4" -->
+                <!--         Maximum="0" -->
+                <!--         Minimum="0" -->
+                <!--         Value="0" -->
+                <!--         x:Name="ProgressBar"/> -->
+                <!-- </StackPanel> -->
+            </StackPanel>
         </Grid>
     </Grid>
 </mah:MetroWindow>
