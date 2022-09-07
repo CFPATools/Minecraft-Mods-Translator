@@ -25,7 +25,9 @@ using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.CodeCompletion;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit;
+using MahApps.Metro;
 using MahApps.Metro.Controls;
+using MahApps.Metro.IconPacks;
 
 namespace Translator;
 /// <summary>
@@ -39,6 +41,9 @@ public partial class MainWindow
     private string FileDir = "";
     private StringBuilder EnJsonText = new();
     private ScrollViewer ScrollViewer;
+    private Hashtable Dict;
+    private DictObject dictObject = new ();
+    private bool baidu = false;
 
     public MainWindow()
     {
@@ -186,7 +191,7 @@ public partial class MainWindow
         TransWordList.SelectedIndex = transWordIndex;
     }
 
-    private void NextTransList()
+    private async void NextTransList()
     {
         SearchBox.Text = "";
         transWordIndex++;
@@ -210,7 +215,7 @@ public partial class MainWindow
         if (transWordIndex >= transLists.Count) transWordIndex = transLists.Count - 1;
         TransWordList.SelectedIndex = transWordIndex;
         
-        ScrollViewer.ScrollToHorizontalOffset(0);
+        await SyncScrollPos();
     }
     
     private ScrollViewer GetScrollViewer(DependencyObject parent)
@@ -246,25 +251,52 @@ public partial class MainWindow
         TransProgress.Content = "翻译进度：" + transLists.Count(word => word.ZhText != "") + "/" + transLists.Count;
         KeyName.Content = "当前键名：" + transLists[TransWordList.SelectedIndex].TranslationKey;
         SetTransDictAndReferHidden();
-        if (TransCheckBox.IsOn)
-        {
-            await GetTransDict();
-        }
+        await GetTransDict();
     }
+    
+    private int count = 0;
 
     private async Task GetTransDict()
     {
+        dictObject.DictTrans.Clear();
         await Task.Delay(new Random().Next(50,300));
-        var text = await TransApi.Google.Contect(AvalonText.Text);
-        var dictObject = new DictObject();
-        dictObject.DictTrans.Add(text);
-        Dispatcher.Invoke(() =>
+        TranslateSelector.ItemsSource = null;
+        if (Dict.Contains(AvalonText.Text))
+            dictObject.DictTrans.Add(new DictTransList(){Trans = (string)Dict[AvalonText.Text], MyIcon = PackIconUniconsKind.BookAlt});
+        if (TransCheckBox.IsOn)
         {
-            TransHidden1.Visibility = Visibility.Visible;
-            TranslateSelector.ItemsSource = dictObject.GetDictTrans();
-            // TransHidden2.Visibility = Visibility.Visible;
-            // TransDict.ItemsSource = dictObject.GetDictRefer();
-        });
+            count += 1;
+            if (count > 10)
+            {
+                TransCheckBox.IsOn = false;
+                TransCloseTips();
+            }
+            else
+            {
+                var google = await TransApi.Google.Contect(AvalonText.Text);
+                if (google != "") dictObject.DictTrans.Add(new DictTransList(){Trans = google, MyIcon = PackIconUniconsKind.Google});
+                try
+                {
+                    var baidu = await TransApi.Baidu.Contect(AvalonText.Text);
+                    if (baidu != "") dictObject.DictTrans.Add(new DictTransList(){Trans = baidu, MyIcon = PackIconUniconsKind.Bold});
+                }
+                catch (Exception e)
+                {
+                    // nothing :)
+                }
+            }
+        }
+
+        if (dictObject.DictTrans.Count > 0)
+            Dispatcher.Invoke(() =>
+            {
+                TransHidden1.Visibility = Visibility.Visible;
+                TranslateSelector.ItemsSource = dictObject.GetDictTrans();
+                // TransHidden2.Visibility = Visibility.Visible;
+                // TransDict.ItemsSource = dictObject.GetDictRefer();
+            });
+        else
+            SetTransDictAndReferHidden();
     }
 
     private void OpenFileOnClick(object sender, RoutedEventArgs e)
@@ -370,6 +402,11 @@ public partial class MainWindow
         
         FloatWindow.BeginAnimation(OpacityProperty, animation);
     }
+    
+    private void TransCloseTips()
+    {
+        TransTips.Visibility = Visibility.Visible;
+    }
 
     private void CtrlSOnExecuted(object sender, ExecutedRoutedEventArgs e)
     {
@@ -381,8 +418,8 @@ public partial class MainWindow
 
     private void Grid_Loaded(object sender, RoutedEventArgs e)
     {
-        string name = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + ".mc.xshd";
-        System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var name = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + ".mc.xshd";
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
         using (System.IO.Stream s = assembly.GetManifestResourceStream(name))
         {
             using (XmlTextReader reader = new XmlTextReader(s))
@@ -396,6 +433,33 @@ public partial class MainWindow
         ScrollViewer = GetScrollViewer(TransWordList);
         
         ScrollViewer.ScrollToHorizontalOffset(0);
+        
+        if (File.Exists("./dict.json"))
+            Dict = SerialText(File.ReadAllText("./dict.json"), out var deleted);
+
+        if (File.Exists("./baidu.ini"))
+        {
+            string id = "", key = "";
+            // 读取百度翻译的配置文件，不用IniFile类
+            var baiduIni = File.ReadAllText("./baidu.ini");
+            var baiduIniLines = baiduIni.Split('\n');
+            foreach (var line in baiduIniLines)
+            {
+                var lineSplit = line.Split('=');
+                if (lineSplit[0] == "id")
+                    id = lineSplit[1];
+                if (lineSplit[0] == "key")
+                    key = lineSplit[1];
+            }
+            // 判断id和key是否为空
+            if (id != "" && key != "")
+            {
+                baidu = true;
+                TransApi.Baidu.SetTransAPI(id, key);
+                // MessageBox.Show(id);
+                // MessageBox.Show(key);
+            }
+        }
     }
 
     private List<string> formatList1 = new();
@@ -477,10 +541,9 @@ public partial class MainWindow
 
     private async void TransCheckBox_OnToggled(object sender, RoutedEventArgs e)
     {
-        if (TransCheckBox.IsOn)
-            await GetTransDict();
-        else
-            SetTransDictAndReferHidden();
+        count = 0;
+        if (TransCheckBox.IsOn) TransTips.Visibility = Visibility.Hidden;
+        await GetTransDict();
     }
 
     private void SearchBox_OnTextChanged(object sender, TextChangedEventArgs e)
@@ -499,13 +562,14 @@ public partial class MainWindow
         SearchWordList.Visibility = Visibility.Hidden;
     }
 
-    private void SearchWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void SearchWordList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (SearchWordList.SelectedIndex == -1) return;
         var search = searchLists[SearchWordList.SelectedIndex];
         var index = transLists.FindIndex(x => x.TranslationKey == search.TranslationKey);
         TransWordList.SelectedIndex = index;
         SearchBox.Text = "";
+        await SyncScrollPos();
     }
 
     private void OpenGithubSite(object sender, RoutedEventArgs e)
@@ -518,10 +582,13 @@ public class DictTransList
 {
     public string? Trans { get; set; } = "";
 
-    public double Width => GetTextWidth(Trans) + 20;
+    public double Width => GetTextWidth(Trans) + 40;
+
+    public PackIconUniconsKind MyIcon { get; set; }
 
     private double GetTextWidth(string? text)
     {
+        // var icontest = new PackIconUnicons().Kind = PackIconUniconsKind.Google;
         var textBlock = new TextBlock
         {
             Text = text,
@@ -548,12 +615,12 @@ public class DictObject
 {
     public string OriginText = "";
     public string Time = "";
-    public List<string> DictTrans = new();
+    public List<DictTransList> DictTrans = new();
     public List<string> DictRefer = new();
 
     public IEnumerable<DictTransList> GetDictTrans()
     {
-        return DictTrans.Select(s => new DictTransList() { Trans = s });
+        return DictTrans;
     }
 
     public IEnumerable<DictReferList> GetDictRefer()

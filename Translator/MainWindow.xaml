@@ -99,6 +99,7 @@
                 <Separator Opacity="0" Height="10"/>
                 <mah:ToggleSwitch x:Name="TransCheckBox" Toggled="TransCheckBox_OnToggled">机翻</mah:ToggleSwitch>
                 <Separator Opacity="0" Height="10"/>
+                <TextBlock TextWrapping="Wrap" Text="为防止滥用，10次翻译后会自动关闭机翻功能，需自行重开。" Foreground="#EF5350" Visibility="Hidden" x:Name="TransTips"/>
             </StackPanel>
         </StackPanel>
         <Border
@@ -188,7 +189,6 @@
                         <DataTemplate>
                             <Button 
                                 Margin="0,0"
-                                Content="{Binding Trans}"
                                 Width="{Binding Width}"
                                 Height="30"
                                 FontSize="15"
@@ -196,7 +196,15 @@
                                 Foreground="Black"
                                 BorderThickness="0"
                                 FontFamily="misans"
-                                Click="TransSelectClick"/>
+                                Click="TransSelectClick">
+                                <StackPanel  Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <iconPacks:PackIconUnicons Width="16"
+                                                               Height="16"
+                                                               Kind="{Binding MyIcon}"
+                                                               Margin="0,0,5,0"/>
+                                    <TextBlock Text="{Binding Trans}" />
+                                </StackPanel>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -249,7 +257,7 @@
             </Grid.RowDefinitions>
             <Label Grid.Row="0" Background="White" Content="模组词库列表" FontFamily="misans" FontSize="20" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="Black" x:Name="ViewCount"/>
             <TextBox Grid.Row="1" Height="40" Margin="0,0,40,10" VerticalContentAlignment="Center" x:Name="SearchBox" TextChanged="SearchBox_OnTextChanged"/>
-            <Button Grid.Row="1" HorizontalAlignment="Right" Height="40" Width="40" Margin="0,0,0,10">🔍</Button>
+            <Button Grid.Row="1" HorizontalAlignment="Right" Height="40" Width="40" Margin="0,0,0,10"><iconPacks:Unicons Kind="Search" /></Button>
             <Border Grid.Row="2" BorderBrush="Gainsboro" BorderThickness="1">
                 <ListBox Background="White" x:Name="TransWordList" SelectionChanged="TransWordList_OnSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Hidden">
                     <ListBox.ItemTemplate>
