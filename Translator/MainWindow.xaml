@@ -73,7 +73,7 @@
         </Grid.ColumnDefinitions>
         
         <TextBlock
-            Text="版本：0.2.1"
+            Text="版本：0.2.3"
             Grid.Column="2"
             HorizontalAlignment="Right"
             VerticalAlignment="Bottom"
