@@ -154,6 +154,7 @@
                     BorderBrush="Gray"
                     BorderThickness="1"
                     ShowLineNumbers="True"
+                    WordWrap="True"
                     ScrollViewer.HorizontalScrollBarVisibility="Hidden"/>
             </Grid>
             <Grid Grid.Row="2">
@@ -170,6 +171,7 @@
                     BorderThickness="1"
                     ShowLineNumbers="True"
                     ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                    WordWrap="True"
                     TextChanged="AvalonEditor_OnTextChanged"/>
             </Grid>
             <Grid Grid.Row="3" Visibility="Hidden" x:Name="TransHidden1">

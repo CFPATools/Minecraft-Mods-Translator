@@ -149,7 +149,10 @@ public partial class MainWindow
     private void TransSelectClick(object sender, RoutedEventArgs e)
     {
         var button = (Button)sender;
-        AvalonEditor.Text = button.Content.ToString();
+        var stackPanel = button.Content as StackPanel;
+        var text = stackPanel.Children[1] as TextBlock;
+        
+        AvalonEditor.Text = text.Text;
     }
 
     // 清空翻译推荐及词典推荐
