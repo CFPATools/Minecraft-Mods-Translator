@@ -41,7 +41,7 @@ public partial class MainWindow
     private string FileDir = "";
     private StringBuilder EnJsonText = new();
     private ScrollViewer ScrollViewer;
-    private Hashtable Dict;
+    private Hashtable Dict = new();
     private DictObject dictObject = new ();
     private bool baidu = false;
 
