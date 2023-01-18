@@ -73,7 +73,7 @@
         </Grid.ColumnDefinitions>
         
         <TextBlock
-            Text="版本：0.2.4"
+            Text="版本：0.3"
             Grid.Column="2"
             HorizontalAlignment="Right"
             VerticalAlignment="Bottom"
@@ -97,7 +97,7 @@
                 <Separator Opacity="0" Height="10"/>
                 <mah:ToggleSwitch x:Name="MarkCheckBox" Toggled="MarkCheckBox_OnToggled">标记中英文重复</mah:ToggleSwitch>
                 <Separator Opacity="0" Height="10"/>
-                <mah:ToggleSwitch x:Name="TransCheckBox" Toggled="TransCheckBox_OnToggled">机翻</mah:ToggleSwitch>
+                <!-- <mah:ToggleSwitch x:Name="TransCheckBox" Toggled="TransCheckBox_OnToggled">机翻</mah:ToggleSwitch> -->
                 <Separator Opacity="0" Height="10"/>
                 <TextBlock TextWrapping="Wrap" Text="为防止滥用，10次翻译后会自动关闭机翻功能，需自行重开。" Foreground="#EF5350" Visibility="Hidden" x:Name="TransTips"/>
             </StackPanel>

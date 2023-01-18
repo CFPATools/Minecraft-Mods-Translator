@@ -1,22 +1,17 @@
 ﻿using System;
-using System.CodeDom;
-using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Mime;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms.VisualStyles;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
@@ -25,9 +20,8 @@ using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.CodeCompletion;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit;
-using MahApps.Metro;
-using MahApps.Metro.Controls;
 using MahApps.Metro.IconPacks;
+using Newtonsoft.Json;
 
 namespace Translator;
 /// <summary>
@@ -41,7 +35,7 @@ public partial class MainWindow
     private string FileDir = "";
     private StringBuilder EnJsonText = new();
     private ScrollViewer ScrollViewer;
-    private Hashtable Dict = new();
+    private Dictionary<string, List<string>> Dict = new();
     private DictObject dictObject = new ();
     private bool baidu = false;
 
@@ -257,38 +251,23 @@ public partial class MainWindow
         await GetTransDict();
     }
     
-    private int count = 0;
+    // private int count = 0;
 
     private async Task GetTransDict()
     {
         dictObject.DictTrans.Clear();
         await Task.Delay(new Random().Next(50,300));
         TranslateSelector.ItemsSource = null;
-        if (Dict.Contains(AvalonText.Text))
-            dictObject.DictTrans.Add(new DictTransList(){Trans = (string)Dict[AvalonText.Text], MyIcon = PackIconUniconsKind.BookAlt});
-        if (TransCheckBox.IsOn)
-        {
-            count += 1;
-            if (count > 10)
+        if (Dict.ContainsKey(AvalonText.Text))
+            foreach (var value in Dict[AvalonText.Text])
             {
-                TransCheckBox.IsOn = false;
-                TransCloseTips();
+                dictObject.DictTrans.Add(
+                    new DictTransList()
+                    {
+                        Trans = value, 
+                        MyIcon = PackIconUniconsKind.BookAlt
+                    });
             }
-            else
-            {
-                var google = await TransApi.Google.Contect(AvalonText.Text);
-                if (google != "") dictObject.DictTrans.Add(new DictTransList(){Trans = google, MyIcon = PackIconUniconsKind.Google});
-                try
-                {
-                    var baidu = await TransApi.Baidu.Contect(AvalonText.Text);
-                    if (baidu != "") dictObject.DictTrans.Add(new DictTransList(){Trans = baidu, MyIcon = PackIconUniconsKind.Bold});
-                }
-                catch (Exception e)
-                {
-                    // nothing :)
-                }
-            }
-        }
 
         if (dictObject.DictTrans.Count > 0)
             Dispatcher.Invoke(() =>
@@ -437,32 +416,28 @@ public partial class MainWindow
         
         ScrollViewer.ScrollToHorizontalOffset(0);
         
-        if (File.Exists("./dict.json"))
-            Dict = SerialText(File.ReadAllText("./dict.json"), out var deleted);
-
-        if (File.Exists("./baidu.ini"))
+        if (File.Exists("./Dict-Mini.json"))
+            Dict = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(File.ReadAllText("./Dict-Mini.json"));
+            // Dict = SerialText(File.ReadAllText("./Dict-Mini.json"), out var deleted);
+        
+        var args = Environment.GetCommandLineArgs();
+        if (args.Length <= 1) return;
+        FileDir = args[1];
+        var enDir = Path.Combine(FileDir, "en_us.json");
+        var zhDir = Path.Combine(FileDir, "zh_cn.json");
+        if (File.Exists(zhDir))
         {
-            string id = "", key = "";
-            // 读取百度翻译的配置文件，不用IniFile类
-            var baiduIni = File.ReadAllText("./baidu.ini");
-            var baiduIniLines = baiduIni.Split('\n');
-            foreach (var line in baiduIniLines)
-            {
-                var lineSplit = line.Split('=');
-                if (lineSplit[0] == "id")
-                    id = lineSplit[1];
-                if (lineSplit[0] == "key")
-                    key = lineSplit[1];
-            }
-            // 判断id和key是否为空
-            if (id != "" && key != "")
-            {
-                baidu = true;
-                TransApi.Baidu.SetTransAPI(id, key);
-                // MessageBox.Show(id);
-                // MessageBox.Show(key);
-            }
+            var enAllText = File.ReadAllText(enDir);
+            var zhAllText = File.ReadAllText(zhDir);
+            SerialJson(enAllText, zhAllText);
         }
+        else
+        {
+            var enAllText = File.ReadAllText(enDir);
+            SerialJson(enAllText, "{}");
+        }
+        FirstPage.Visibility = Visibility.Hidden;
+        SyncScrollPos();
     }
 
     private List<string> formatList1 = new();
@@ -544,8 +519,8 @@ public partial class MainWindow
 
     private async void TransCheckBox_OnToggled(object sender, RoutedEventArgs e)
     {
-        count = 0;
-        if (TransCheckBox.IsOn) TransTips.Visibility = Visibility.Hidden;
+        // count = 0;
+        // if (TransCheckBox.IsOn) TransTips.Visibility = Visibility.Hidden;
         await GetTransDict();
     }
 
@@ -577,7 +552,7 @@ public partial class MainWindow
 
     private void OpenGithubSite(object sender, RoutedEventArgs e)
     {
-        Process.Start("https://github.com/Tryanks/Minecraft-Mods-Translator");
+        Process.Start("https://github.com/CFPATools/Minecraft-Mods-Translator");
     }
 }
 
