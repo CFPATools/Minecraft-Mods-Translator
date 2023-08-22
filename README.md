@@ -1,3 +1,5 @@
+本项目已停止维护，新版本（[Tryanks/WebTranslator](https://github.com/Tryanks/WebTranslator)）正在开发中，可在cfpatools.github.io体验有限功能（仅预览）的网页版。
+
 # Minecraft Mods Translator
 
 适用于Minecraft 1.16+版本的MC模组翻译器
